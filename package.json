@@ -1,0 +1,21 @@
+{
+  "name": "crypted-udp",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "0.10.x",
+    "npm": ">=1.2"
+  },
+  "scripts": {
+    "test": "mocha -R spec --compilers coffee:coffee-script/register --require should --ui bdd",
+    "test-watch": "mocha -R spec --compilers coffee:coffee-script/register --require should --ui bdd --watch"
+  },
+  "dependencies": {
+    "coffee-script": "latest",
+    "winston": "latest",
+    "baconjs": "latest"
+  }
+}
