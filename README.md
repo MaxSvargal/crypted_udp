@@ -17,3 +17,13 @@ JSON-RPC with AES-256-CBC crypted sockets over UPD/IPv6 for NodeJs
     JSON.stringify msg
     
 ```
+
+### Tests
+```sh
+npm test
+```
+
+### Compile to JavaScript
+```sh
+npm run-script compile
+```
