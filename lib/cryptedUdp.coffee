@@ -45,15 +45,19 @@ module.exports = class CryptedUdp
         callback bytes
 
   sendCryptedMessage: (address, port, msg, callback) =>
+    message =
+      replyTo: @_id
+      data: msg
+
     secretKey = @getPeerSecretKey address, port
     throw new Error "No secret key with peer #{address}:#{port}" if not secretKey
-    message = new Buffer @cryptMessage(msg, secretKey)
-    @socket.send message, 0, message.length, port, address
+    crypted = new Buffer @cryptMessage(JSON.stringify(message), secretKey)
+    @socket.send crypted, 0, crypted.length, port, address
 
     peerId = @_peers["#{address}:#{port}"].replyTo
     @_awaitingReply[peerId] =
       timestamp: Date.now()
-      callback: callback   
+      callback: callback  
 
   onMessageHandler: (msg, info) =>
     try
@@ -63,6 +67,8 @@ module.exports = class CryptedUdp
         when 'CONNECT_REPLY' then @onConnectReplyHandler message, info
     catch
       decrypted = @recieveCryptedMessage msg, info
+      @callbackAwaited decrypted
+      decrypted
 
   recieveCryptedMessage: (msg, rinfo) ->
     secretKey = @getPeerSecretKey rinfo.address, rinfo.port
@@ -109,11 +115,12 @@ module.exports = class CryptedUdp
       msg = @onMessageHandler msg, rinfo
       if msg then callback msg
 
-  awaitedCallbacks: ->
-    if message.replyTo and @_awaitingReply.hasOwnProperty message.replyTo
-      cb = @_awaitingReply[message.replyTo].callback
-      delete @_awaitingReply[message.replyTo]
-      cb message
+  callbackAwaited: (msg) ->
+    msg = JSON.parse msg
+    if msg.replyTo and @_awaitingReply.hasOwnProperty msg.replyTo
+      cb = @_awaitingReply[msg.replyTo].callback
+      delete @_awaitingReply[msg.replyTo]
+      cb msg
     return
 
   connect: (address, port, callback = new Function) ->
@@ -128,4 +135,7 @@ module.exports = class CryptedUdp
 
     @_peers["#{address}:#{port}"] = { connected: false, callback: callback.bind methods }
     methods
+
+  close: ->
+    @socket.close()
 

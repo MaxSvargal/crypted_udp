@@ -12,6 +12,10 @@ describe 'CryptedUDP', ->
     address: '127.0.0.1'
     port: 41236
 
+  peerTwo = new CryptedUdp
+    address: '127.0.0.1'
+    port: 41237
+
 
   describe 'seed constructor', ->
     it 'has generated public key', ->
@@ -34,6 +38,7 @@ describe 'CryptedUDP', ->
     it 'connect fn should be return peer methods', ->
       p = peer.connect '127.0.0.1', 41235
       p.send.should.be.a.Function
+      p.on.should.be.a.Function
 
 
   describe 'crypt functions', ->
@@ -47,11 +52,14 @@ describe 'CryptedUDP', ->
       decrypted.should.eql message
 
 
-    describe 'send crypted message manually', ->
+    describe 'send crypted message', ->
       it 'peer should recieved message', ->
+        id = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
+        peerTwo._id = id
         seed.on 'message', (msg) ->
-          msg.should.eql message
+          JSON.parse(msg).should.eql { replyTo: id, data: message }
 
-        peer.connect '127.0.0.1', 41235, ->
+        peer = peerTwo.connect '127.0.0.1', 41235, ->
           @send message, ->
             console.log "Message sended"
+        #peer.send 'Hello, world!'
