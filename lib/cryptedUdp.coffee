@@ -2,20 +2,19 @@
 
 dgram = require 'dgram'
 crypto = require 'crypto'
-Bacon = require('baconjs').Bacon
 
 module.exports = class CryptedUdp
   constructor: (@params) ->
     @_awaitingReply = {}
     @_peers = {}
     @_id = @generateId()
-    @socket = @createSocket @params.address, @params.port
     @key = @createKeys()
-    @socket.on 'message', @onMessage
-    
+    @socket = @createSocket @params.address, @params.port
+    @socket.on 'message', @onMessageHandler
+
   createSocket: (address, port) ->
     socket = dgram.createSocket 'udp4'
-    socket.bind port, @address
+    socket.bind port, address
     socket
 
   createKeys: ->
@@ -38,13 +37,51 @@ module.exports = class CryptedUdp
     decrypted = decipher.update msg, 'binary', 'utf8'
     (decrypted + decipher.final('utf8')).toString()
 
-  sendMessage: (ip, port, msg, callback) ->
+  sendMessage: (address, port, msg, callback) =>
     message = new Buffer JSON.stringify(msg)
-    @socket.send message, 0, message.length, port, ip, (err, bytes) ->
-      callback err if err
-      callback bytes
+    @socket.send message, 0, message.length, port, address, (err, bytes) ->
+      if callback
+        callback err if err
+        callback bytes
 
-  onMessage: ->
-    console.log "MESSAGE HERE!"
+  onMessageHandler: (msg, info) =>
+    msg = JSON.parse msg
     @_awaitingReply = {msg: msg, info: info}
-    console.log @_awaitingReply
+    switch msg.method
+      when 'CONNECT' then @onConnectHandler msg, info
+      when 'CONNECT_REPLY' then @onConnectReplyHandler msg, info
+
+  onConnectHandler: (msg, info) ->
+    @sendMessage info.address, info.port,
+      'method': 'CONNECT_REPLY'
+      'replyTo': @_id
+      'publicKey': @key.public
+
+    @_peers["#{info.address}:#{info.port}"] = 
+      timestamp: Date.now()
+      connected: true
+      publicKey: msg.publicKey
+
+  onConnectReplyHandler: (msg, info) ->
+    peer = @_peers["#{info.address}:#{info.port}"]
+    peer.connected = true
+    peer.timestamp = Date.now()
+    peer.callback() if peer.callback
+
+  on: (type, callback) ->
+    @socket.on 'message', (msg, rinfo) =>
+      callback msg, rinfo
+
+  connect: (address, port, callback = new Function) ->
+    methods =
+      send: (msg, callback) => @sendMessage address, port, msg, callback
+      on: @on
+
+    @sendMessage address, port,
+      'method': 'CONNECT'
+      'replyTo': @_id
+      'publicKey': @key.public
+
+    @_peers["#{address}:#{port}"] = { connected: false, callback: callback.bind methods }
+    methods
+
