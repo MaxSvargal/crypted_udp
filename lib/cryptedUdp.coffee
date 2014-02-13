@@ -4,10 +4,10 @@ dgram = require 'dgram'
 crypto = require 'crypto'
 
 module.exports = class CryptedUdp
-  constructor: ({address, port}) ->
+  constructor: ({address, port, id}) ->
     @_awaitingReply = {}
     @_peers = {}
-    @_id = @generateId()
+    @_id = if id then id else @generateId()
     @key = @createKeys()
     @socket = @createSocket address, port
     @socket.on 'message', @onMessageHandler
