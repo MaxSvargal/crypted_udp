@@ -3,6 +3,7 @@ CryptedUdp = require('../lib/cryptedUdp.coffee')
 describe 'CryptedUDP', ->
   message = '{ "foo": "bar" }'
   password = '0438572837458374572'
+  peerId = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
 
   seed = new CryptedUdp
     address: '127.0.0.1'
@@ -54,12 +55,19 @@ describe 'CryptedUDP', ->
 
     describe 'send crypted message', ->
       it 'peer should recieved message', ->
-        id = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
-        peerTwo._id = id
+        peerTwo._id = peerId
         seed.on 'message', (msg) ->
-          JSON.parse(msg).should.eql { replyTo: id, data: message }
+          JSON.parse(msg).should.eql { replyTo: peerId, data: message }
 
-        peer = peerTwo.connect '127.0.0.1', 41235, ->
+        peerTwo.connect '127.0.0.1', 41235, ->
           @send message, ->
             console.log "Message sended"
-        #peer.send 'Hello, world!'
+
+      it 'seed should recieved sync messages', ->
+        seed.on 'message', (msg) ->
+          JSON.parse(msg).should.eql { replyTo: peerId, data: message }
+
+        node = peer.connect '127.0.0.1', 41235
+        node._id = peerId
+        for [0..3]
+          node.send message

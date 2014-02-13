@@ -1,7 +1,7 @@
 CryptedUDP
 ===========
 
-JSON-RPC with AES-256-CBC crypted sockets over UDP/IPv6 (IPv4) for NodeJs
+JSON-RPC with AES-256-CBC crypted UDP sockets over IPv4 for NodeJs
 
 
 ```coffeescript

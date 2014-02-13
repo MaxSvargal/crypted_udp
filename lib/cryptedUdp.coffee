@@ -7,6 +7,7 @@ module.exports = class CryptedUdp
   constructor: ({address, port, id}) ->
     @_awaitingReply = {}
     @_peers = {}
+    @_buffer = {}
     @_id = if id then id else @generateId()
     @key = @createKeys()
     @socket = @createSocket address, port
@@ -50,14 +51,22 @@ module.exports = class CryptedUdp
       data: msg
 
     secretKey = @getPeerSecretKey address, port
-    throw new Error "No secret key with peer #{address}:#{port}" if not secretKey
-    crypted = new Buffer @cryptMessage(JSON.stringify(message), secretKey)
-    @socket.send crypted, 0, crypted.length, port, address
+    if not secretKey
+      tpl = 
+        message: msg
+        callback: callback
+      if @_buffer["#{address}:#{port}"]
+        @_buffer["#{address}:#{port}"].push tpl
+      else @_buffer["#{address}:#{port}"] = [tpl]
 
-    peerId = @_peers["#{address}:#{port}"].replyTo
-    @_awaitingReply[peerId] =
-      timestamp: Date.now()
-      callback: callback  
+    else
+      crypted = new Buffer @cryptMessage(JSON.stringify(message), secretKey)
+      @socket.send crypted, 0, crypted.length, port, address
+
+      peerId = @_peers["#{address}:#{port}"].replyTo
+      @_awaitingReply[peerId] =
+        timestamp: Date.now()
+        callback: callback  
 
   onMessageHandler: (msg, info) =>
     try
@@ -89,6 +98,10 @@ module.exports = class CryptedUdp
     return
 
   onConnectReplyHandler: (msg, info) ->
+    if awaited = @_buffer["#{info.address}:#{info.port}"]
+      for message in awaited
+        @sendCryptedMessage info.address, info.port, message.message, message.callback
+
     peer = @_peers["#{info.address}:#{info.port}"]
     peer.connected = true
     peer.timestamp = Date.now()
@@ -110,7 +123,7 @@ module.exports = class CryptedUdp
   getSecretExchangeKey: (other_public_key) ->
     @key.computeSecret new Buffer(other_public_key), null, 'hex'
 
-  on: (type, callback) ->
+  on: (type, callback) =>
     @socket.on 'message', (msg, rinfo) =>
       msg = @onMessageHandler msg, rinfo
       if msg then callback msg
