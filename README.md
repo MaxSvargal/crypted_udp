@@ -25,7 +25,7 @@ JSON-RPC with AES-256-CBC crypted UDP sockets over IPv4 for NodeJs
 ```
 
 ### Tests
-You need [mocha](http://visionmedia.github.io/mocha/) installed
+You need [mocha](http://mochajs.org/) installed
 ```sh
 npm test
 ```
